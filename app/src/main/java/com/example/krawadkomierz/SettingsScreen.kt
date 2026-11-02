@@ -22,10 +22,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SettingsScreen(settings: AppSettings, onSettingsChange: (AppSettings) -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())   // the list is long, so it scrolls
-            .padding(16.dp),
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("Ustawienia", fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -40,7 +37,7 @@ fun SettingsScreen(settings: AppSettings, onSettingsChange: (AppSettings) -> Uni
         SectionTitle("Max Force")
         NumberSetting(
             label = "Czas testu",
-            value = settings.maxTestSeconds, unit = "s", min = 3, max = 15,
+            value = settings.maxTestSeconds, unit = "s", min = 2, max = 15,
             onValueChange = { newValue -> onSettingsChange(settings.copy(maxTestSeconds = newValue)) }
         )
 

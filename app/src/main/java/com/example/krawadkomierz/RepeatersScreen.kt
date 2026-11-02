@@ -30,21 +30,16 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.sin
-import kotlin.random.Random
 
+// etapy treningu
 enum class TrainingPhase { READY, COUNTDOWN, WORK, REST, DONE }
-enum class Zone { TOO_LOW, GOOD, TOO_HIGH }
-fun zoneOf(forceKg: Float, lowKg: Float, highKg: Float): Zone {
-    return when {
-        forceKg > highKg -> Zone.TOO_HIGH
-        forceKg < lowKg -> Zone.TOO_LOW
-        else -> Zone.GOOD
-    }
-}
 
 @Composable
-fun RepeatersScreen(settings: AppSettings, modifier: Modifier = Modifier) {
+fun RepeatersScreen(
+    settings: AppSettings,
+    modifier: Modifier = Modifier
+) {
+
     val targetKg = settings.userMaxKg * settings.targetPercent / 100f
     val lowKg = settings.userMaxKg * (settings.targetPercent - settings.marginPercent) / 100f
     val highKg = settings.userMaxKg * (settings.targetPercent + settings.marginPercent) / 100f
@@ -56,103 +51,100 @@ fun RepeatersScreen(settings: AppSettings, modifier: Modifier = Modifier) {
     val readings = remember { mutableStateListOf<Float>() }
     val sampleCount = remember { mutableStateOf(0) }
     val workReadings = remember { mutableStateOf(0) }
-    val goodReadings = remember { mutableStateOf(0) }    //jak duzo w zakresie
+    val goodReadings = remember { mutableStateOf(0) }
     val trainingJob = remember { mutableStateOf<Job?>(null) }
 
     val scope = rememberCoroutineScope()
     val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
+    val dynamometer = rememberDynamometer()
 
+    // zwolnij dzwiek przy wyjsc
     DisposableEffect(Unit) {
         onDispose { toneGenerator.release() }
     }
 
+    // czy trwa
     val isRunning = phase.value == TrainingPhase.COUNTDOWN ||
             phase.value == TrainingPhase.WORK ||
             phase.value == TrainingPhase.REST
-    val zone = zoneOf(force.value, lowKg, highKg)
 
-    // sila jako sinus zeby cos bylo na wykresie
+    // co 50 ms odczyt
     LaunchedEffect(phase.value) {
-        var time = 0.0
         while (phase.value == TrainingPhase.WORK || phase.value == TrainingPhase.REST) {
-            val reading = if (phase.value == TrainingPhase.WORK) {
-                targetKg + 4 * sin(time) + Random.nextDouble(-0.5, 0.5)
-            } else {
-                Random.nextDouble(0.0, 1.0)
-            }
-            force.value = reading.toFloat()
+            force.value = dynamometer.latestKg
             readings.add(force.value)
             sampleCount.value++
             if (readings.size > MAX_POINTS) {
-                readings.removeAt(0)   // usuwa najstarsze pseudoodczyty
+                readings.removeAt(0)
             }
+            // licz, jaka część ciągnięcia była w strefie
             if (phase.value == TrainingPhase.WORK) {
                 workReadings.value++
-                if (zoneOf(force.value, lowKg, highKg) == Zone.GOOD) {
+                if (force.value in lowKg..highKg) {
                     goodReadings.value++
                 }
             }
-            time += 0.1
             delay(SAMPLE_INTERVAL_MS)
         }
     }
 
+
     val screenColor = when (phase.value) {
-        TrainingPhase.WORK -> when (zone) {
-            Zone.TOO_HIGH -> Color(0xFFC62828)
-            Zone.GOOD -> Color(0xFF2E7D32)
-            Zone.TOO_LOW -> Color(0xFFFFEB3B)
+        TrainingPhase.WORK -> when {
+            force.value > highKg -> Color(0xFFC62828)
+            force.value < lowKg -> Color(0xF2ECDB53)
+            else -> Color(0xFF2E7D32)
         }
-        TrainingPhase.REST -> Color(0xFF03A9F4)
+        TrainingPhase.REST -> Color(0xFF1565C0)
         else -> MaterialTheme.colorScheme.background
     }
+    // na kolorowym tle biały tekst
     val textColor = if (phase.value == TrainingPhase.WORK || phase.value == TrainingPhase.REST) {
         Color.White
     } else {
         MaterialTheme.colorScheme.onBackground
     }
+    // napis pod liczbą
     val message = when (phase.value) {
         TrainingPhase.READY -> "Naciśnij Start"
         TrainingPhase.COUNTDOWN -> "Przygotuj się…"
-        TrainingPhase.WORK -> when (zone) {
-            Zone.TOO_HIGH -> "Za mocno!"
-            Zone.GOOD -> "Dobrze, trzymaj"
-            Zone.TOO_LOW -> "Przyłóż się..."
+        TrainingPhase.WORK -> when {
+            force.value > highKg -> "Za mocno!"
+            force.value < lowKg -> "Mocniej!"
+            else -> "Dobrze, trzymaj"
         }
-        TrainingPhase.REST -> "Reścik"
+        TrainingPhase.REST -> "Odpoczynek"
         TrainingPhase.DONE -> "Koniec treningu"
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = screenColor, contentColor = textColor) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text("Repeaters", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            DynamometerStatus(dynamometer)
             Text("Cel: %.1f kg (od %.1f do %.1f kg)".format(targetKg, lowKg, highKg))
-            Text("Powtórzenie: ${repetition.value} z ${settings.repetitions}")
+            Text("Powtórzenie ${repetition.value} z ${settings.repetitions}")
             Spacer(modifier = Modifier.height(16.dp))
             Text("%.1f kg".format(force.value), fontSize = 64.sp, fontWeight = FontWeight.Bold)
             Text(message, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             if (isRunning) {
                 Text("Zostało: ${secondsLeft.value} s")
             }
+            //jaka czesc ciagniecia byla w strefie
             if (phase.value == TrainingPhase.DONE && workReadings.value > 0) {
                 val percentInZone = goodReadings.value * 100 / workReadings.value
                 Text("W strefie przez $percentInZone% czasu ciągnięcia")
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // wykres na wlasnym Cardzie, nie przyjmuje kolorow
+
             Surface(shape = RoundedCornerShape(12.dp)) {
                 ForceChart(
                     readings = readings,
                     sampleCount = sampleCount.value,
-                    zoneLowKg = lowKg,
-                    zoneHighKg = highKg,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -163,18 +155,19 @@ fun RepeatersScreen(settings: AppSettings, modifier: Modifier = Modifier) {
 
             Button(onClick = {
                 if (isRunning) {
+                    // przerwij
                     trainingJob.value?.cancel()
                     phase.value = TrainingPhase.DONE
                 } else {
                     trainingJob.value = scope.launch {
-                        // 1. Reset
+                        // 1. zeruj
                         readings.clear()
                         sampleCount.value = 0
                         workReadings.value = 0
                         goodReadings.value = 0
                         repetition.value = 0
 
-                        // 2.Odliczanie
+                        // 2. odliczanie
                         phase.value = TrainingPhase.COUNTDOWN
                         for (n in settings.countdownSeconds downTo 1) {
                             secondsLeft.value = n
@@ -182,16 +175,16 @@ fun RepeatersScreen(settings: AppSettings, modifier: Modifier = Modifier) {
                             delay(1000)
                         }
 
-                        // 3. Powtorzenia, bez resta po ostatnim
+                        // 3. powtorzenia
                         for (rep in 1..settings.repetitions) {
                             repetition.value = rep
                             phase.value = TrainingPhase.WORK
-                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_D, 600)   // pull!
+                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_D, 600)
                             for (s in settings.workSeconds downTo 1) {
                                 secondsLeft.value = s
                                 delay(1000)
                             }
-                            toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 400) // let go
+                            toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 400)
                             if (rep < settings.repetitions) {
                                 phase.value = TrainingPhase.REST
                                 for (s in settings.restSeconds downTo 1) {
@@ -201,7 +194,7 @@ fun RepeatersScreen(settings: AppSettings, modifier: Modifier = Modifier) {
                             }
                         }
 
-                        // 4. Zrobione
+                        // 4. koniec
                         phase.value = TrainingPhase.DONE
                     }
                 }

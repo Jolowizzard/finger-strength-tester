@@ -26,8 +26,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.exp
-import kotlin.random.Random
 
 const val MAX_POINTS = 200           // odczyty na wykresie 10 s
 const val SAMPLE_INTERVAL_MS = 50L   // 50 ms
@@ -56,21 +54,17 @@ fun MeasurementScreen(
     val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
 
 
+    val dynamometer = rememberDynamometer()   // waga WH-C06 (zgoda, słuchanie, wyłączanie)
+
+    // zwolnij dźwięk przy wyjściu z ekranu
     DisposableEffect(Unit) {
         onDispose { toneGenerator.release() }
     }
 
-    // udawany silomierz do ~40 kg
+    // co 50 ms nowy odczyt
     LaunchedEffect(isMeasuring.value) {
         while (isMeasuring.value) {
-            val reading = if (signalSample.value < 0) {
-                Random.nextDouble(0.0, 1.0)
-            } else {
-                val secondsAfterSignal = (sampleCount.value - signalSample.value) * SAMPLE_INTERVAL_MS / 1000.0
-                val riseTime = if (isRfd) 0.3 else 1.5
-                40 * (1 - exp(-secondsAfterSignal / riseTime)) + Random.nextDouble(0.0, 1.0)
-            }
-            force.value = reading.toFloat()
+            force.value = dynamometer.latestKg
             if (force.value > maxForce.value) {
                 maxForce.value = force.value
                 maxSample.value = sampleCount.value
@@ -90,6 +84,7 @@ fun MeasurementScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        DynamometerStatus(dynamometer)   // napis: czy silomierz nadaje
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = if (countdown.value > 0) "${countdown.value}" else "%.1f kg".format(force.value),

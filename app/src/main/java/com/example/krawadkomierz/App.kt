@@ -13,18 +13,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 
-// All screens the app can show
 enum class Screen { HOME, RFD, MAX_FORCE, REPEATERS, HISTORY, SETTINGS }
 
 @Composable
 fun App() {
     val currentScreen = remember { mutableStateOf(Screen.HOME) }
 
-    // All settings live here, because several screens need them
     val context = LocalContext.current
     val settings = remember { mutableStateOf(loadSettings(context)) }
 
-    // System "back" button: go back to the home screen
     BackHandler(enabled = currentScreen.value != Screen.HOME) {
         currentScreen.value = Screen.HOME
     }
@@ -36,13 +33,13 @@ fun App() {
                 NavigationBarItem(
                     selected = currentScreen.value != Screen.HISTORY && currentScreen.value != Screen.SETTINGS,
                     onClick = { currentScreen.value = Screen.HOME },
-                    icon = { Text("🧗") },
+                    icon = { Text("🧗‍♀️") },
                     label = { Text("Testy") }
                 )
                 NavigationBarItem(
                     selected = currentScreen.value == Screen.HISTORY,
                     onClick = { currentScreen.value = Screen.HISTORY },
-                    icon = { Text("📈") },
+                    icon = { Text("🗓️") },
                     label = { Text("Historia") }
                 )
                 NavigationBarItem(
@@ -52,8 +49,8 @@ fun App() {
                     label = { Text("Ustawienia") }
                 )
             }
-        }
-    ) { innerPadding ->
+        },
+    content = { innerPadding ->
         val screenModifier = Modifier.padding(innerPadding)
         when (currentScreen.value) {
             Screen.HOME -> HomeScreen(
@@ -78,7 +75,9 @@ fun App() {
                 settings = settings.value,
                 modifier = screenModifier
             )
-            Screen.HISTORY -> HistoryScreen(modifier = screenModifier)
+            Screen.HISTORY -> HistoryScreen(
+                modifier = screenModifier
+            )
             Screen.SETTINGS -> SettingsScreen(
                 settings = settings.value,
                 onSettingsChange = { newSettings ->
@@ -88,5 +87,5 @@ fun App() {
                 modifier = screenModifier
             )
         }
-    }
+    })
 }

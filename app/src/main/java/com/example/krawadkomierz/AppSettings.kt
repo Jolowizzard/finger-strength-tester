@@ -5,7 +5,7 @@ data class AppSettings(
     val countdownSeconds: Int = 3,
     val maxTestSeconds: Int = 7,
     val rfdTestSeconds: Int = 7,
-    val userMaxKg: Int = 50,
+    val userMaxKg: Int = 30,
     val targetPercent: Int = 80,
     val marginPercent: Int = 5,
     val workSeconds: Int = 7,
