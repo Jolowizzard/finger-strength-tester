@@ -33,7 +33,7 @@ fun ForceChart(
     val lineColor = Color(0xFF2E7D32)
     val signalColor = Color(0xFFEA004A)
     val maxColor = Color(0xFF1565C0)
-    val zoneColor = Color(0x5566BB6A)
+    val zoneColor = Color(0xFF9BFF9B)
     val labelStyle = TextStyle(fontSize = 11.sp, color = axisColor)
     val textMeasurer = rememberTextMeasurer()
 
@@ -42,7 +42,6 @@ fun ForceChart(
         val highestReading = readings.maxOrNull() ?: 0f
         val maxForce = ceil(maxOf(50f, highestReading, zoneHighKg) / 10f) * 10f
 
-        // Plot area = whole canvas minus room for labels
         val left = 36.dp.toPx()
         val top = 24.dp.toPx()
         val right = size.width

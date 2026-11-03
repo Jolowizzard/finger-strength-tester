@@ -31,7 +31,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// etapy treningu
 enum class TrainingPhase { READY, COUNTDOWN, WORK, REST, DONE }
 
 @Composable
@@ -145,10 +144,9 @@ fun RepeatersScreen(
                 ForceChart(
                     readings = readings,
                     sampleCount = sampleCount.value,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .padding(8.dp)
+                    zoneLowKg = lowKg,
+                    zoneHighKg = highKg,
+                    modifier = Modifier.fillMaxWidth().height(220.dp) .padding(8.dp)
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))

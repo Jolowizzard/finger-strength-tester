@@ -53,8 +53,7 @@ fun MeasurementScreen(
     val scope = rememberCoroutineScope()
     val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
 
-
-    val dynamometer = rememberDynamometer()   // waga WH-C06 (zgoda, słuchanie, wyłączanie)
+    val dynamometer = rememberDynamometer()
 
     // zwolnij dźwięk przy wyjściu z ekranu
     DisposableEffect(Unit) {

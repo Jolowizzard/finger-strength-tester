@@ -28,14 +28,20 @@ class Dynamometer(private val context: Context) {
     private var lastPacketTime = 0L    //ostatnia paczka ms
 
     private var scanner: BluetoothLeScanner? = null
-
+    fun fixByte(byte: Byte): Int {
+        if (byte < 0) {
+            return byte + 256
+        } else {
+            return byte.toInt()
+        }
+    }
 
     private val callback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val data = result.scanRecord?.getManufacturerSpecificData(MANUFACTURER_ID) ?: return
             if (data.size < 12) return
             // bajty 10 i 11, w setnych kg
-            val raw = ((data[10].toInt() and 0xFF) shl 8) or (data[11].toInt() and 0xFF)
+            val raw = fixByte(data[10]) * 256 + fixByte(data[11])
             latestKg = raw / 100f
             lastPacketTime = System.currentTimeMillis()
         }
