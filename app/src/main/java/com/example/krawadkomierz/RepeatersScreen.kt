@@ -91,7 +91,7 @@ fun RepeatersScreen(
     val screenColor = when (phase.value) {
         TrainingPhase.WORK -> when {
             force.value > highKg -> Color(0xFFC62828)
-            force.value < lowKg -> Color(0xF2ECDB53)
+            force.value < lowKg -> Color(0xFFFF8222)
             else -> Color(0xFF2E7D32)
         }
         TrainingPhase.REST -> Color(0xFF1565C0)
