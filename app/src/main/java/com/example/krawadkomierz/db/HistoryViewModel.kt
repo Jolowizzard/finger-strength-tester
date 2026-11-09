@@ -3,12 +3,20 @@ package com.example.krawadkomierz.db
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class HistoryMode(val label: String) {
+    MAX_FORCE("Pomiary siły maksymalnej"),
+    REPEATERS("Repeaters")
+}
 class HistoryViewModel (private val repository: TrainingRepository) : ViewModel() {
-
+    private val _selectedMode = MutableStateFlow(HistoryMode.MAX_FORCE)
+    val selectedMode: StateFlow<HistoryMode> = _selectedMode.asStateFlow()
     val maxForcePoints: Flow<List<MaxForcePoint>> = repository.maxForcePoints
         .stateIn(
             scope = viewModelScope,
@@ -16,6 +24,9 @@ class HistoryViewModel (private val repository: TrainingRepository) : ViewModel(
             initialValue = emptyList()
         )
 
+    fun selectMode(mode: HistoryMode){
+        _selectedMode.value = mode
+    }
     fun saveMaxForceTraining(name: String, notes: String?, maxForceValue: Float) {
         viewModelScope.launch {
             repository.saveMaxForceTraining(name, notes, maxForceValue)

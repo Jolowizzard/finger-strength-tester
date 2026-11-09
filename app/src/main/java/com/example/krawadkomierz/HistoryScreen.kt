@@ -58,6 +58,8 @@ import java.util.Locale
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberUpdatedState
+import com.example.krawadkomierz.db.HistoryMode
+import kotlinx.coroutines.selects.select
 
 @Composable
 fun VicoHistoryChart(
@@ -225,6 +227,7 @@ fun HistoryScreen(
     viewModel: HistoryViewModel
 ) {
     val points by viewModel.maxForcePoints.collectAsStateWithLifecycle(initialValue = emptyList())
+    val selectedMode by viewModel.selectedMode.collectAsStateWithLifecycle()
 
     // <-- ZMIANA: Stan nie jest na twardo nadpisywany przy każdej zmianie punktów
     var selectedPoint by remember { mutableStateOf<MaxForcePoint?>(null) }
@@ -254,41 +257,48 @@ fun HistoryScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Historia Pomiarów Siły",
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold
+        HistoryModeSelector(
+            selectedMode = selectedMode,
+            onModeSelected = { newMode -> viewModel.selectMode(newMode)},
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        if (points.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Brak zapisanych pomiarów", fontSize = 16.sp)
+        when (selectedMode) {
+            HistoryMode.MAX_FORCE -> {
+                if (points.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Brak zapisanych pomiarów", fontSize = 16.sp)
+                    }
+                } else {
+                    VicoHistoryChart(
+                        points = points,
+                        onPointSelected = { selectedPoint = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                    )
+
+                    Text(
+                        text = "Kliknij punkt na wykresie, aby zobaczyć szczegóły:",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+
+                    selectedPoint?.let { currentPoint ->
+                        MeasurementDetailCard(
+                            point = currentPoint,
+                            onDeleteClick = { pointToDelete = currentPoint }
+                        )
+                    }
+                }
             }
-        } else {
-            VicoHistoryChart(
-                points = points,
-                onPointSelected = { selectedPoint = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(260.dp)
-            )
-
-            Text(
-                text = "Kliknij punkt na wykresie, aby zobaczyć szczegóły:",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-
-            selectedPoint?.let { currentPoint ->
-                MeasurementDetailCard(
-                    point = currentPoint,
-                    onDeleteClick = { pointToDelete = currentPoint }
-                )
+            HistoryMode.REPEATERS -> {
+                Text("Prace nad tym ekranem wciąż trwają, prosimy o wyrozumiałość")
             }
         }
     }
