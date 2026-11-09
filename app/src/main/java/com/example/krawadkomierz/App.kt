@@ -12,16 +12,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.krawadkomierz.db.AppDatabase
+import com.example.krawadkomierz.db.HistoryViewModel
+import com.example.krawadkomierz.db.TrainingRepository
 
 enum class Screen { HOME, RFD, MAX_FORCE, REPEATERS, HISTORY, SETTINGS }
 
 @Composable
-fun App() {
+fun App()
+{
     val currentScreen = remember { mutableStateOf(Screen.HOME) }
 
     val context = LocalContext.current
     val settings = remember { mutableStateOf(loadSettings(context)) }
-
+    val viewModel: HistoryViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+                val application = checkNotNull(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY])
+                val db = AppDatabase.getDatabase(application)
+                val repository = TrainingRepository(db.trainingDao())
+                return HistoryViewModel(repository) as T
+            }
+        }
+    )
     BackHandler(enabled = currentScreen.value != Screen.HOME) {
         currentScreen.value = Screen.HOME
     }
@@ -62,21 +80,24 @@ fun App() {
                 isRfd = true,
                 countdownSeconds = settings.value.countdownSeconds,
                 testSeconds = settings.value.rfdTestSeconds,
-                modifier = screenModifier
+                modifier = screenModifier,
+                viewModel = viewModel
             )
             Screen.MAX_FORCE -> MeasurementScreen(
                 title = "Max Force",
                 isRfd = false,
                 countdownSeconds = settings.value.countdownSeconds,
                 testSeconds = settings.value.maxTestSeconds,
-                modifier = screenModifier
+                modifier = screenModifier,
+                viewModel = viewModel
             )
             Screen.REPEATERS -> RepeatersScreen(
                 settings = settings.value,
                 modifier = screenModifier
             )
             Screen.HISTORY -> HistoryScreen(
-                modifier = screenModifier
+                modifier = screenModifier,
+                viewModel = viewModel
             )
             Screen.SETTINGS -> SettingsScreen(
                 settings = settings.value,

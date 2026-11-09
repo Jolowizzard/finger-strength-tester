@@ -23,9 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.krawadkomierz.db.HistoryViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 const val MAX_POINTS = 200           // odczyty na wykresie 10 s
 const val SAMPLE_INTERVAL_MS = 50L   // 50 ms
@@ -36,7 +42,8 @@ fun MeasurementScreen(
     isRfd: Boolean,
     countdownSeconds: Int,
     testSeconds: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HistoryViewModel
 ) {
     val isRunning = remember { mutableStateOf(false) }
     val isMeasuring = remember { mutableStateOf(false) }
@@ -50,10 +57,61 @@ fun MeasurementScreen(
     val maxSample = remember { mutableStateOf(-1) }        // nr odczytu z max
     val testJob = remember { mutableStateOf<Job?>(null) }  // test w tle (do przerwania)
 
+    val testEnded = remember { mutableStateOf(false) }      // czy test się powiódł, to jest, czy są jakieś dane, które użytkownik może zapisać
+    val showSaveDialog = remember {mutableStateOf(false)}   // zmienna wyświetlania okna dialogowego do zapisu
     val scope = rememberCoroutineScope()
     val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
 
     val dynamometer = rememberDynamometer()
+
+    if(showSaveDialog.value){
+        var sessionName by remember { mutableStateOf("Trening Max Force") }
+        var notes by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showSaveDialog.value = false },
+            title = { Text("Zapisz trening") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Wynik max: %.1f kg".format(maxForce.value), fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = sessionName,
+                        onValueChange = { sessionName = it },
+                        label = { Text("Nazwa treningu") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = { Text("Notatka (opcjonalnie)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (sessionName.isNotBlank()) {
+                            viewModel.saveMaxForceTraining(
+                                name = sessionName.trim(),
+                                notes = notes.ifBlank { null },
+                                maxForceValue = maxForce.value
+                            )
+                            showSaveDialog.value = false
+                        }
+                    }
+                ) {
+                    Text("Zapisz")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog.value = false }) {
+                    Text("Anuluj")
+                }
+            }
+        )
+    }
 
     // zwolnij dźwięk przy wyjściu z ekranu
     DisposableEffect(Unit) {
@@ -126,6 +184,7 @@ fun MeasurementScreen(
                 isMeasuring.value = false
                 countdown.value = 0
                 secondsLeft.value = 0
+                testEnded.value = false
             } else {
                 testJob.value = scope.launch {
                     // 1. zeruj
@@ -164,11 +223,18 @@ fun MeasurementScreen(
 
                     isMeasuring.value = false
                     toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 400)
+                    testEnded.value = true
                     isRunning.value = false
                 }
             }
         }) {
             Text(if (isRunning.value) "Przerwij" else "Start")
+        }
+        if(!isRfd) { // Przycisk działa tylko dla widoku MAX_FORCE, narazie tylko do testów
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = {showSaveDialog.value = true},
+                enabled = testEnded.value && !isRunning.value)
+            { Text("Zapisz pomiar")}
         }
     }
 }
